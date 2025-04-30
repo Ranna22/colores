@@ -13,7 +13,6 @@
   <div class="controls">
     <div class="filtros">
       <strong>Filtrar por rango de edad:</strong>
-      <!-- Checkboxes se insertan con JS -->
     </div>
     <div>
       <label><input type="checkbox" id="toggleNulls" checked /> Incluir datos sin edad</label>
@@ -21,16 +20,16 @@
   </div>
 
   <div class="charts">
-    <!-- Gráfica de barras general por color -->
+    <!-- Primero: Gráfico de pastel por color -->
     <div class="chart-box">
-      <h2>Preferencias Generales por Color</h2>
-      <canvas id="barChart"></canvas>
+      <h2>Distribución General de Preferencias por Color</h2>
+      <canvas id="pieChart"></canvas>
     </div>
 
-    <!-- Gráfica de pastel por edad para un color -->
+    <!-- Segundo: Gráfico de barras por edad -->
     <div class="chart-box">
-      <h2>Distribución por Edad del Color Seleccionado</h2>
-      <canvas id="pieChart"></canvas>
+      <h2>Preferencias por Edad del Color Seleccionado</h2>
+      <canvas id="barChart"></canvas>
     </div>
   </div>
 
