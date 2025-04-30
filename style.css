@@ -30,14 +30,14 @@ h1 {
 
 .charts {
   display: flex;
-  justify-content: space-around;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: center;
   gap: 30px;
 }
 
 .chart-box {
-  width: 45%;
-  min-width: 300px;
+  width: 80%;
+  max-width: 800px;
   background-color: #fff;
   border-radius: 10px;
   padding: 20px;
