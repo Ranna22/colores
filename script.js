@@ -1,141 +1,160 @@
-let datos = [];
-let graficoPastel, graficoBarras, graficoDetalle;
+let rawData = [];
+let includeNull = true;
+let selectedAges = ["18-25", "26-35", "36-45", "46+"];
+const colores = ["Rojo", "Azul", "Verde", "Amarillo", "Naranja", "Morado"];
+const edades = ["18-25", "26-35", "36-45", "46+"];
 
-async function cargarDatos() {
-  const respuesta = await fetch('data.json');
-  datos = await respuesta.json();
-  actualizarGraficos();
+const barChartCtx = document.getElementById("barChart").getContext("2d");
+const pieChartCtx = document.getElementById("pieChart").getContext("2d");
+
+let barChart;
+let pieChart;
+
+fetch("data.json")
+  .then((res) => res.json())
+  .then((data) => {
+    rawData = data;
+    initControls();
+    renderBarChart();
+    renderPieChart("Azul"); // Valor por defecto para la segunda gráfica
+  });
+
+function initControls() {
+  const container = document.querySelector(".filtros");
+  edades.forEach((edad) => {
+    const label = document.createElement("label");
+    label.innerHTML = `<input type="checkbox" value="${edad}" checked> ${edad}`;
+    container.appendChild(label);
+  });
+
+  container.querySelectorAll("input[type=checkbox]").forEach((input) => {
+    input.addEventListener("change", () => {
+      selectedAges = Array.from(
+        container.querySelectorAll("input:checked")
+      ).map((el) => el.value);
+      updateCharts();
+    });
+  });
+
+  document
+    .getElementById("toggleNulls")
+    .addEventListener("change", (e) => {
+      includeNull = e.target.checked;
+      updateCharts();
+    });
 }
 
-function obtenerFiltros() {
-  const edades = Array.from(document.querySelectorAll('.filtroEdad:checked')).map(e => e.value);
-  const incluirNulos = document.getElementById('incluirNulos').checked;
-  return { edades, incluirNulos };
+function getFilteredData() {
+  return rawData.filter((d) => {
+    if (!d.edad && !includeNull) return false;
+    return !d.edad || selectedAges.includes(d.edad);
+  });
 }
 
-function filtrarDatos() {
-  const { edades, incluirNulos } = obtenerFiltros();
-  return datos.filter(item =>
-    (item.edad === null && incluirNulos) || edades.includes(item.edad)
+function renderBarChart() {
+  const data = getFilteredData();
+  const conteo = colores.map(
+    (color) => data.filter((d) => d.color === color).length
   );
-}
 
-function contarColores(dataFiltrada) {
-  const conteo = {};
-  dataFiltrada.forEach(({ color }) => {
-    conteo[color] = (conteo[color] || 0) + 1;
-  });
-  return conteo;
-}
+  if (barChart) barChart.destroy();
 
-function contarColorEdad(dataFiltrada) {
-  const resultado = {};
-  dataFiltrada.forEach(({ color, edad }) => {
-    if (!resultado[color]) resultado[color] = {};
-    resultado[color][edad] = (resultado[color][edad] || 0) + 1;
-  });
-  return resultado;
-}
-
-function generarColores(n) {
-  const base = ['#e63946', '#f1fa8c', '#90be6d', '#577590', '#f4a261', '#9b5de5'];
-  return Array.from({ length: n }, (_, i) => base[i % base.length]);
-}
-
-function actualizarGraficos() {
-  const dataFiltrada = filtrarDatos();
-  const porColor = contarColores(dataFiltrada);
-  const porColorEdad = contarColorEdad(dataFiltrada);
-
-  const colores = Object.keys(porColor);
-  const cantidades = Object.values(porColor);
-  const coloresHex = generarColores(colores.length);
-
-  // Pastel
-  if (graficoPastel) graficoPastel.destroy();
-  graficoPastel = new Chart(document.getElementById('graficoPastel'), {
-    type: 'pie',
+  barChart = new Chart(barChartCtx, {
+    type: "bar",
     data: {
       labels: colores,
-      datasets: [{
-        data: cantidades,
-        backgroundColor: coloresHex
-      }]
+      datasets: [
+        {
+          label: "Cantidad de personas por color",
+          data: conteo,
+          backgroundColor: colores.map(getColor),
+        },
+      ],
+    },
+    options: {
+      onClick: (e, elements) => {
+        if (elements.length > 0) {
+          const colorIndex = elements[0].index;
+          renderPieChart(colores[colorIndex]);
+        }
+      },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: function (context) {
+              return `${context.dataset.label}: ${context.raw}`;
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
+function renderPieChart(colorSeleccionado) {
+  const data = getFilteredData().filter((d) => d.color === colorSeleccionado);
+  const porEdad = edades.map(
+    (rango) => data.filter((d) => d.edad === rango).length
+  );
+
+  if (pieChart) pieChart.destroy();
+
+  pieChart = new Chart(pieChartCtx, {
+    type: "pie",
+    data: {
+      labels: edades,
+      datasets: [
+        {
+          label: `Preferencias de ${colorSeleccionado} por edad`,
+          data: porEdad,
+          backgroundColor: edades.map(getColorForAge),
+        },
+      ],
     },
     options: {
       plugins: {
         tooltip: {
           callbacks: {
-            label: (ctx) => `${ctx.label}: ${ctx.parsed} votos`
-          }
-        }
+            label: function (context) {
+              const edad = context.label;
+              const cantidad = context.raw;
+              return `Edad ${edad}: ${cantidad} personas`;
+            },
+          },
+        },
+        title: {
+          display: true,
+          text: `Preferencias de ${colorSeleccionado} por edad`,
+        },
       },
-      onClick: (e, elementos) => {
-        if (elementos.length > 0) {
-          const index = elementos[0].index;
-          const color = colores[index];
-          mostrarDetalle(color, porColorEdad[color]);
-        }
-      }
-    }
-  });
-
-  // Barras
-  const rangos = ["18-25", "26-35", "36-45", "46+"];
-  const datasets = rangos.map((rango, i) => ({
-    label: rango,
-    data: colores.map(c => porColorEdad[c]?.[rango] || 0),
-    backgroundColor: generarColores(rangos.length)[i]
-  }));
-
-  if (graficoBarras) graficoBarras.destroy();
-  graficoBarras = new Chart(document.getElementById('graficoBarras'), {
-    type: 'bar',
-    data: {
-      labels: colores,
-      datasets: datasets
     },
-    options: {
-      responsive: true,
-      plugins: {
-        tooltip: {
-          mode: 'index',
-          intersect: false
-        }
-      },
-      scales: {
-        x: { stacked: true },
-        y: { stacked: true }
-      }
-    }
   });
-
-  document.getElementById('detalleColorBox').style.display = 'none';
 }
 
-function mostrarDetalle(color, detalle) {
-  const edades = Object.keys(detalle);
-  const cantidades = Object.values(detalle);
-
-  if (graficoDetalle) graficoDetalle.destroy();
-  graficoDetalle = new Chart(document.getElementById('graficoDetalleColor'), {
-    type: 'bar',
-    data: {
-      labels: edades,
-      datasets: [{
-        label: `Votos por edad`,
-        data: cantidades,
-        backgroundColor: '#6a4c93'
-      }]
-    }
-  });
-
-  document.getElementById('colorSeleccionado').textContent = color;
-  document.getElementById('detalleColorBox').style.display = 'block';
+function updateCharts() {
+  renderBarChart();
+  const colorActual = pieChart?.data?.datasets?.[0]?.label?.split(" ")[2] || "Azul";
+  renderPieChart(colorActual);
 }
 
-document.querySelectorAll('.filtroEdad, #incluirNulos').forEach(el =>
-  el.addEventListener('change', actualizarGraficos)
-);
+function getColor(color) {
+  const map = {
+    Rojo: "#dc3545",
+    Azul: "#007bff",
+    Verde: "#28a745",
+    Amarillo: "#ffc107",
+    Naranja: "#fd7e14",
+    Morado: "#6f42c1",
+  };
+  return map[color] || "#ccc";
+}
 
-cargarDatos();
+function getColorForAge(edad) {
+  const map = {
+    "18-25": "#A3E4DB",
+    "26-35": "#F9A825",
+    "36-45": "#F06292",
+    "46+": "#BA68C8",
+  };
+  return map[edad] || "#ddd";
+}
