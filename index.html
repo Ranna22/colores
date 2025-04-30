@@ -1,204 +1,39 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Preferencias de Colores - Encuesta</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Preferencias de Color - Encuesta</title>
+  <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-  <h1>Panel Interactivo - Preferencias de Colores</h1>
+  <h1>Panel de Visualización de Preferencias de Color</h1>
 
   <div class="controls">
     <div class="filtros">
-      <label><input type="checkbox" class="filtroEdad" value="18-25" checked> 18-25</label>
-      <label><input type="checkbox" class="filtroEdad" value="26-35" checked> 26-35</label>
-      <label><input type="checkbox" class="filtroEdad" value="36-45" checked> 36-45</label>
-      <label><input type="checkbox" class="filtroEdad" value="46+" checked> 46+</label>
+      <strong>Filtrar por rango de edad:</strong>
+      <!-- Checkboxes se insertan con JS -->
     </div>
     <div>
-      <label><input type="checkbox" id="incluirNulos" checked> Incluir sin edad</label>
+      <label><input type="checkbox" id="toggleNulls" checked /> Incluir datos sin edad</label>
     </div>
   </div>
 
   <div class="charts">
+    <!-- Gráfica de barras general por color -->
     <div class="chart-box">
-      <h2>Preferencias Generales (Pastel)</h2>
-      <canvas id="graficoPastel"></canvas>
+      <h2>Preferencias Generales por Color</h2>
+      <canvas id="barChart"></canvas>
     </div>
+
+    <!-- Gráfica de pastel por edad para un color -->
     <div class="chart-box">
-      <h2>Preferencias por Edad (Barras)</h2>
-      <canvas id="graficoBarras"></canvas>
+      <h2>Distribución por Edad del Color Seleccionado</h2>
+      <canvas id="pieChart"></canvas>
     </div>
   </div>
 
-  <div class="chart-box" id="detalleBox" style="display: none;">
-    <h2>Detalle por Edad para: <span id="colorSeleccionado"></span></h2>
-    <canvas id="graficoDetalle"></canvas>
-  </div>
-
-  <script>
-let rawData = [];
-let includeNull = true;
-let selectedAges = ["18-25", "26-35", "36-45", "46+"];
-const colores = ["Rojo", "Azul", "Verde", "Amarillo", "Naranja", "Morado"];
-const edades = ["18-25", "26-35", "36-45", "46+"];
-
-const barChartCtx = document.getElementById("barChart").getContext("2d");
-const pieChartCtx = document.getElementById("pieChart").getContext("2d");
-
-let barChart;
-let pieChart;
-
-fetch("data.json")
-  .then((res) => res.json())
-  .then((data) => {
-    rawData = data;
-    initControls();
-    renderBarChart();
-    renderPieChart("Azul"); // Valor por defecto para la segunda gráfica
-  });
-
-function initControls() {
-  const container = document.querySelector(".filtros");
-  edades.forEach((edad) => {
-    const label = document.createElement("label");
-    label.innerHTML = `<input type="checkbox" value="${edad}" checked> ${edad}`;
-    container.appendChild(label);
-  });
-
-  container.querySelectorAll("input[type=checkbox]").forEach((input) => {
-    input.addEventListener("change", () => {
-      selectedAges = Array.from(
-        container.querySelectorAll("input:checked")
-      ).map((el) => el.value);
-      updateCharts();
-    });
-  });
-
-  document
-    .getElementById("toggleNulls")
-    .addEventListener("change", (e) => {
-      includeNull = e.target.checked;
-      updateCharts();
-    });
-}
-
-function getFilteredData() {
-  return rawData.filter((d) => {
-    if (!d.edad && !includeNull) return false;
-    return !d.edad || selectedAges.includes(d.edad);
-  });
-}
-
-function renderBarChart() {
-  const data = getFilteredData();
-  const conteo = colores.map(
-    (color) => data.filter((d) => d.color === color).length
-  );
-
-  if (barChart) barChart.destroy();
-
-  barChart = new Chart(barChartCtx, {
-    type: "bar",
-    data: {
-      labels: colores,
-      datasets: [
-        {
-          label: "Cantidad de personas por color",
-          data: conteo,
-          backgroundColor: colores.map(getColor),
-        },
-      ],
-    },
-    options: {
-      onClick: (e, elements) => {
-        if (elements.length > 0) {
-          const colorIndex = elements[0].index;
-          renderPieChart(colores[colorIndex]);
-        }
-      },
-      plugins: {
-        tooltip: {
-          callbacks: {
-            label: function (context) {
-              return `${context.dataset.label}: ${context.raw}`;
-            },
-          },
-        },
-      },
-    },
-  });
-}
-
-function renderPieChart(colorSeleccionado) {
-  const data = getFilteredData().filter((d) => d.color === colorSeleccionado);
-  const porEdad = edades.map(
-    (rango) => data.filter((d) => d.edad === rango).length
-  );
-
-  if (pieChart) pieChart.destroy();
-
-  pieChart = new Chart(pieChartCtx, {
-    type: "pie",
-    data: {
-      labels: edades,
-      datasets: [
-        {
-          label: `Preferencias de ${colorSeleccionado} por edad`,
-          data: porEdad,
-          backgroundColor: edades.map(getColorForAge),
-        },
-      ],
-    },
-    options: {
-      plugins: {
-        tooltip: {
-          callbacks: {
-            label: function (context) {
-              const edad = context.label;
-              const cantidad = context.raw;
-              return `Edad ${edad}: ${cantidad} personas`;
-            },
-          },
-        },
-        title: {
-          display: true,
-          text: `Preferencias de ${colorSeleccionado} por edad`,
-        },
-      },
-    },
-  });
-}
-
-function updateCharts() {
-  renderBarChart();
-  const colorActual = pieChart?.data?.datasets?.[0]?.label?.split(" ")[2] || "Azul";
-  renderPieChart(colorActual);
-}
-
-function getColor(color) {
-  const map = {
-    Rojo: "#dc3545",
-    Azul: "#007bff",
-    Verde: "#28a745",
-    Amarillo: "#ffc107",
-    Naranja: "#fd7e14",
-    Morado: "#6f42c1",
-  };
-  return map[color] || "#ccc";
-}
-
-function getColorForAge(edad) {
-  const map = {
-    "18-25": "#A3E4DB",
-    "26-35": "#F9A825",
-    "36-45": "#F06292",
-    "46+": "#BA68C8",
-  };
-  return map[edad] || "#ddd";
-}
-
-  </script>
+  <script src="script.js"></script>
 </body>
 </html>
