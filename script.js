@@ -58,6 +58,8 @@ function renderPieChart() {
     (color) => data.filter((d) => d.color === color).length
   );
 
+  const total = conteo.reduce((sum, count) => sum + count, 0);
+
   if (pieChart) pieChart.destroy();
 
   pieChart = new Chart(pieChartCtx, {
@@ -83,7 +85,8 @@ function renderPieChart() {
         tooltip: {
           callbacks: {
             label: function (context) {
-              return `${context.label}: ${context.raw} personas`;
+              const porcentaje = ((context.raw / total) * 100).toFixed(2);
+              return `${context.label}: ${context.raw} personas (${porcentaje}%)`;
             },
           },
         },
@@ -101,6 +104,8 @@ function renderBarChart(colorSeleccionado) {
   const porEdad = edades.map(
     (rango) => data.filter((d) => d.edad === rango).length
   );
+
+  const total = porEdad.reduce((sum, count) => sum + count, 0);
 
   if (barChart) barChart.destroy();
 
@@ -121,7 +126,8 @@ function renderBarChart(colorSeleccionado) {
         tooltip: {
           callbacks: {
             label: function (context) {
-              return `${context.label}: ${context.raw} personas`;
+              const porcentaje = ((context.raw / total) * 100).toFixed(2);
+              return `${context.label}: ${context.raw} personas (${porcentaje}%)`;
             },
           },
         },
@@ -136,8 +142,8 @@ function renderBarChart(colorSeleccionado) {
           stepSize: 1,
           title: {
             display: true,
-            text: 'Cantidad de personas'
-          }
+            text: 'Cantidad de personas',
+          },
         },
       },
     },
